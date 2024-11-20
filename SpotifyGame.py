@@ -3,8 +3,12 @@ from PIL import Image, ImageTk, ImageFilter
 import requests
 import random
 import spotipy
+import pygame
 from spotipy.oauth2 import SpotifyClientCredentials
 import numpy as np
+from scipy.spatial.distance import cdist
+
+### MAIN PROBLEM, PROGRAM WONT PLAY THE SONG. ALSO ITS IN A WEIRD FORMAT. NEEDS TO BE FIXED.
 
 # Spotify API Credentials
 SPOTIFY_CLIENT_ID = '85ff204786884864b9e5e44afefef6b7'
@@ -17,6 +21,9 @@ PEXELS_API_KEY = "EE2eCMhITUnDs50vcPAVsHLKBIsxa3e8EZi8fczFvE2PhLKInsnci1rr"
 spotify_credentials_manager = SpotifyClientCredentials(
     client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET)
 sp = spotipy.Spotify(client_credentials_manager=spotify_credentials_manager)
+
+#Pygame is used for sound playback
+pygame.mixer.init()
 
 def fetch_random_image():
     url = "https://api.pexels.com/v1/search"
@@ -58,17 +65,53 @@ def create_blurred_background(image_path):
     
     return blurred_background
 
-def display_image_with_blurred_background():
+def create_gradient_background(color1, color2):
+    """Create a gradient background using two colors."""
+    width, height = root.winfo_screenwidth(), root.winfo_screenheight()
+    gradient_image = Image.new("RGB", (width, height))
+    for y in range(height):
+        # Interpolate between color1 and color2
+        r = int(color1[0] + (color2[0] - color1[0]) * y / height)
+        g = int(color1[1] + (color2[1] - color1[1]) * y / height)
+        b = int(color1[2] + (color2[2] - color1[2]) * y / height)
+        for x in range(width):
+            gradient_image.putpixel((x, y), (r, g, b))
+    return gradient_image
+
+def find_two_most_contrasting_colors(image_path):
+    """Find two most contrasting colors from an image."""
+    image = Image.open(image_path).resize((100, 100))
+    np_image = np.array(image).reshape(-1, 3)
+    unique_colors, counts = np.unique(np_image, axis=0, return_counts=True)
+    sorted_colors = [tuple(map(int, color)) for color in unique_colors[np.argsort(-counts)]]
+    
+    # Find the two colors with the maximum contrast (Euclidean distance)
+    if len(sorted_colors) >= 2:
+        distances = cdist(np.array(sorted_colors), np.array(sorted_colors), metric='euclidean')
+        np.fill_diagonal(distances, 0)  # Ignore self-distances
+        max_index = np.unravel_index(np.argmax(distances), distances.shape)
+        return sorted_colors[max_index[0]], sorted_colors[max_index[1]]
+    else:
+        # Fallback in case there are fewer colors
+        return sorted_colors[0], sorted_colors[0]
+
+def create_gradient_from_most_contrasting_colors(image_path):
+    """Generate a gradient using the two most contrasting colors from an image."""
+    color1, color2 = find_two_most_contrasting_colors(image_path)
+    gradient_bg = create_gradient_background(color1, color2)
+    return gradient_bg
+
+def display_image_with_gradient_background():
     global img, original_image
     image_path = fetch_random_image()
     if image_path:
         original_image = Image.open(image_path)
-
-        # Create and display blurred background
-        blurred_bg = create_blurred_background(image_path)
-        blurred_bg = ImageTk.PhotoImage(blurred_bg)
-        label_bg.config(image=blurred_bg)
-        label_bg.image = blurred_bg
+        
+        # Create and display gradient background
+        gradient_bg = create_gradient_from_most_contrasting_colors(image_path)
+        gradient_bg = ImageTk.PhotoImage(gradient_bg)
+        label_bg.config(image=gradient_bg)
+        label_bg.image = gradient_bg
 
         # Resize and display the main image on top
         max_width, max_height = 400, 300
@@ -116,15 +159,32 @@ def search_song():
                 track_name = track['name']
                 artist_name = track['artists'][0]['name']
                 spotify_url = track['external_urls']['spotify']
+                preview_url = track.get('preview_url')  # Get the preview URL
+                if preview_url:
+                    # Create a play button for each song, using pack for geometry management
+                    play_button = Button(scrollable_frame, text=f"Play {track_name}", command=lambda url=preview_url: play_preview(url))
+                    play_button.pack(pady=5)  # Use pack instead of grid
                 output += f"{idx + 1}. {track_name} by {artist_name}\nURL: {spotify_url}\n\n"
-            label_results.config(text=output)
+            update_results_text(output)
         else:
-            label_results.config(text="No tracks found.")
+            update_results_text(text="No tracks found.")
     else:
-        label_results.config(text="Please enter a song name.")
+        update_results_text(text="Please enter a song name.")
+
+def play_preview(preview_url):
+    """Play the song preview when the button is clicked."""
+    try:
+        pygame.mixer.music.load(preview_url)  # Load the preview URL (works with direct URL to .mp3 or .ogg)
+        pygame.mixer.music.play()
+    except Exception as e:
+        print(f"Error playing preview: {e}")
+
+def stop_preview():
+    """Stop the preview audio."""
+    pygame.mixer.music.stop()
 
 def next_picture():
-    display_image_with_blurred_background()
+    display_image_with_gradient_background()
 
 # GUI setup
 root = Tk()
@@ -138,7 +198,7 @@ label_bg.place(relwidth=1, relheight=1)  # Cover the entire window
 # Image Display Label (on top of the background)
 label_image = Label(root)
 label_image.pack(pady=10)
-display_image_with_blurred_background()
+display_image_with_gradient_background()
 
 # Bind mouse events for zoom functionality
 label_image.bind("<Motion>", on_hover)
@@ -183,8 +243,17 @@ canvas.configure(yscrollcommand=scrollbar.set)
 canvas.pack(side="left", fill="both", expand=True)
 scrollbar.pack(side="right", fill="y")
 
-label_results = Label(scrollable_frame, text="", justify="left", wraplength=500)
-label_results.pack()
+# Replace Label with Canvas text for better blending
+canvas_results = Canvas(scrollable_frame, bg=scrollable_frame["bg"], bd=0, highlightthickness=0)
+canvas_results.pack(fill="both", expand=True)
+
+# Function to update the results (simulating `label_results` behavior)
+def update_results_text(text):
+    canvas_results.delete("all")  # Clear previous text
+    canvas_results.create_text(10, 10, anchor="nw", text=text, fill="black", width=500)
+
+# Use the `update_results_text` function to display search results
+update_results_text("Type a song here")
 
 # Function to handle mouse wheel scrolling
 def _on_mouse_wheel(event):
