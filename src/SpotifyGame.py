@@ -8,8 +8,6 @@ from spotipy.oauth2 import SpotifyClientCredentials
 import numpy as np
 from scipy.spatial.distance import cdist
 
-### MAIN PROBLEM, PROGRAM WONT PLAY THE SONG. ALSO ITS IN A WEIRD FORMAT. NEEDS TO BE FIXED.
-
 # Spotify API Credentials
 SPOTIFY_CLIENT_ID = '85ff204786884864b9e5e44afefef6b7'
 SPOTIFY_CLIENT_SECRET = 'fc50fc222100434089251eed0decac25'
