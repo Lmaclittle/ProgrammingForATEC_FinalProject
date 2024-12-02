@@ -22,7 +22,7 @@ spotify_credentials_manager = SpotifyClientCredentials(
     client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET)
 sp = spotipy.Spotify(client_credentials_manager=spotify_credentials_manager)
 
-#Pygame is used for sound playback
+#Pygame is used for sound
 pygame.mixer.init()
 
 def fetch_random_image():
