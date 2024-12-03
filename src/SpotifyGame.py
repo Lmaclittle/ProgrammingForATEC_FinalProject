@@ -1,4 +1,6 @@
-from tkinter import Tk, Label, Entry, Button, Canvas, Scrollbar, Frame
+# Import required libraries
+import tkinter as tk
+from tkinter import Tk, Label, Entry, Button, Canvas, Scrollbar, Frame, simpledialog, messagebox
 from PIL import Image, ImageTk, ImageFilter
 import requests
 import random
@@ -8,24 +10,114 @@ from spotipy.oauth2 import SpotifyClientCredentials
 import numpy as np
 from scipy.spatial.distance import cdist
 
-### THIS IS A TEST TO SEE IF IT WORKS ###
+## IT WORKS BUT GAME IMMIDEATELY ENDS AFTER PLAYER NUMBER IS INPUTTED.
 
-# Spotify API Credentials
+# API Credentials
 SPOTIFY_CLIENT_ID = '85ff204786884864b9e5e44afefef6b7'
 SPOTIFY_CLIENT_SECRET = 'fc50fc222100434089251eed0decac25'
-
-# Pexels API Key
 PEXELS_API_KEY = "EE2eCMhITUnDs50vcPAVsHLKBIsxa3e8EZi8fczFvE2PhLKInsnci1rr"
 
-# Spotify Authentication
-spotify_credentials_manager = SpotifyClientCredentials(
-    client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET)
+# Initialize Spotify and Pygame
+spotify_credentials_manager = SpotifyClientCredentials(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET)
 sp = spotipy.Spotify(client_credentials_manager=spotify_credentials_manager)
-
-#Pygame is used for sound
 pygame.mixer.init()
 
+root = tk.Tk()
+root.title("Random Image & Spotify Search")
+root.geometry("600x600")
+# ------------------------------ BEGINNING - PLAYER COUNT ------------------------------
+def get_player_count():
+    """Prompt user for number of players before starting the game."""
+    player_window = tk.Toplevel(root)
+    player_window.title("Enter Number of Players")
+    player_window.geometry("300x200")
+
+    label_prompt = tk.Label(player_window, text="How many players are there?")
+    label_prompt.pack(pady=20)
+
+    player_count_entry = tk.Entry(player_window)
+    player_count_entry.pack(pady=5)
+
+    def start_game():
+        num_players = player_count_entry.get()
+        if num_players.isdigit() and int(num_players) > 0:
+            global players
+            players = int(num_players)
+            player_window.destroy()
+            start_player_turns()
+        else:
+            messagebox.showerror("Invalid input", "Please enter a valid number of players.")
+
+    submit_button = tk.Button(player_window, text="Start Game", command=start_game)
+    submit_button.pack(pady=10)
+
+    player_window.grab_set()  # Make this window modal
+    player_window.wait_window()  # Block until the player window is closed
+
+# ------------------------------ START GAME & PLAYER TURN FUNCTIONS ------------------------------
+def start_player_turns():
+    """Start the game and prompt each player to make a submission."""
+    player_number = 1  # Initialize player_number at the start
+    while player_number <= players:
+        player_turn(player_number)  # Proceed with the current player's turn
+        player_number += 1  # Increment the player number after each turn
+    else:
+        messagebox.showinfo("Game Over", "All players have made their submissions!")
+        start_music_game()  # Start the main game logic after all players have submitted their songs
+
+def player_turn(player_number):
+    """Display the submission prompt for the current player."""
+    if player_number <= players:
+        # Update the label to prompt the current player
+        label_prompt.config(text=f"Player {player_number}, please make a submission.")
+        entry_song.pack(pady=5)
+        button_search.pack(pady=10)
+
+        # Disable buttons while the player makes a submission
+        button_search.config(state="normal")
+        entry_song.config(state="normal")
+
+        def on_submission():
+            # After player makes a submission, move to next player
+            song_name = entry_song.get()
+            if song_name:
+                messagebox.showinfo("Submission Received", f"Player {player_number} submitted: {song_name}")
+                entry_song.delete(0, tk.END)
+                player_turn(player_number + 1)  # Move to next player
+            else:
+                messagebox.showwarning("Input Required", "Please enter a song name.")
+
+        submit_button = tk.Button(root, text="Submit", command=on_submission)
+        submit_button.pack(pady=10)
+    else:
+        messagebox.showinfo("Game Over", "All players have made their submissions!")
+        start_music_game()  # Start the main game logic after all players have submitted their songs
+
+def start_music_game():
+    """Start the main game window (music game)."""
+    label_prompt.config(text="Enter a song to search:")
+    entry_song.pack(pady=5)
+    button_search.pack(pady=10)
+
+    frame_results.pack(pady=10, fill="both", expand=True)
+    canvas.pack(side="left", fill="both", expand=True)
+    scrollbar.pack(side="right", fill="y")
+
+    label_bg.place(relwidth=1, relheight=1)
+    display_image_with_gradient_background()
+
+    # Bind mouse events for zoom functionality
+    label_image.bind("<Motion>", on_hover)
+    label_image.bind("<Leave>", on_leave)
+    label_zoom.place_forget()
+
+    # Start the Tkinter event loop for the main game
+    root.mainloop()
+
+# ------------------------------ Helper Functions ------------------------------
+
 def fetch_random_image():
+    """Fetch a random image from the Pexels API."""
     url = "https://api.pexels.com/v1/search"
     queries = ["nature", "space", "people", "epic", "cinematic", "thrilling", "party", "fighting", 
                "angry", "sad", "creepy", "car", "fantasy"]
@@ -48,19 +140,12 @@ def fetch_random_image():
 def create_blurred_background(image_path):
     """Create a blurred background using the dominant color of the image."""
     image = Image.open(image_path)
-    
-    # Resize image to speed up processing (optional)
     image = image.resize((100, 100))
-    
-    # Convert image to numpy array and get the dominant color
     np_image = np.array(image)
     avg_color = np.mean(np_image.reshape(-1, 3), axis=0).astype(int)
     dominant_color = tuple(avg_color)
     
-    # Create a solid color image with the dominant color
     background = Image.new("RGB", (root.winfo_screenwidth(), root.winfo_screenheight()), dominant_color)
-    
-    # Apply Gaussian blur
     blurred_background = background.filter(ImageFilter.GaussianBlur(radius=30))
     
     return blurred_background
@@ -70,7 +155,6 @@ def create_gradient_background(color1, color2):
     width, height = root.winfo_screenwidth(), root.winfo_screenheight()
     gradient_image = Image.new("RGB", (width, height))
     for y in range(height):
-        # Interpolate between color1 and color2
         r = int(color1[0] + (color2[0] - color1[0]) * y / height)
         g = int(color1[1] + (color2[1] - color1[1]) * y / height)
         b = int(color1[2] + (color2[2] - color1[2]) * y / height)
@@ -85,14 +169,12 @@ def find_two_most_contrasting_colors(image_path):
     unique_colors, counts = np.unique(np_image, axis=0, return_counts=True)
     sorted_colors = [tuple(map(int, color)) for color in unique_colors[np.argsort(-counts)]]
     
-    # Find the two colors with the maximum contrast (Euclidean distance)
     if len(sorted_colors) >= 2:
         distances = cdist(np.array(sorted_colors), np.array(sorted_colors), metric='euclidean')
-        np.fill_diagonal(distances, 0)  # Ignore self-distances
+        np.fill_diagonal(distances, 0)
         max_index = np.unravel_index(np.argmax(distances), distances.shape)
         return sorted_colors[max_index[0]], sorted_colors[max_index[1]]
     else:
-        # Fallback in case there are fewer colors
         return sorted_colors[0], sorted_colors[0]
 
 def create_gradient_from_most_contrasting_colors(image_path):
@@ -101,19 +183,18 @@ def create_gradient_from_most_contrasting_colors(image_path):
     gradient_bg = create_gradient_background(color1, color2)
     return gradient_bg
 
+# ------------------------------ GUI Functions ------------------------------
+
 def display_image_with_gradient_background():
     global img, original_image
     image_path = fetch_random_image()
     if image_path:
         original_image = Image.open(image_path)
-        
-        # Create and display gradient background
         gradient_bg = create_gradient_from_most_contrasting_colors(image_path)
         gradient_bg = ImageTk.PhotoImage(gradient_bg)
         label_bg.config(image=gradient_bg)
         label_bg.image = gradient_bg
 
-        # Resize and display the main image on top
         max_width, max_height = 400, 300
         original_image.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
         img = ImageTk.PhotoImage(original_image)
@@ -122,6 +203,58 @@ def display_image_with_gradient_background():
     else:
         label_image.config(text="Failed to load image")
 
+def search_song():
+    song_name = entry_song.get()
+    if song_name:
+        results = sp.search(q=song_name, type='track', limit=15)
+        tracks = results['tracks']['items']
+        if tracks:
+            has_preview = False
+            output = ""
+            for idx, track in enumerate(tracks):
+                track_name = track['name']
+                artist_name = track['artists'][0]['name']
+                spotify_url = track['external_urls']['spotify']
+                preview_url = track.get('preview_url')
+                output += f"{idx + 1}. {track_name} by {artist_name}\nURL: {spotify_url}\n\n"
+
+                if preview_url:
+                    has_preview = True
+                    play_button = Button(scrollable_frame, text=f"Play {track_name}",
+                                          command=lambda url=preview_url: play_preview(url))
+                    play_button.pack(pady=5)
+
+            update_results_text(output)
+            if not has_preview:
+                update_results_text(output + "\nNo tracks with previews available.")
+        else:
+            update_results_text(text="No tracks found.")
+    else:
+        update_results_text(text="Please enter a song name.")
+
+def play_preview(preview_url):
+    """Play the song preview when the button is clicked."""
+    try:
+        response = requests.get(preview_url)
+        if response.status_code == 200 and response.content:
+            with open("preview.mp3", "wb") as f:
+                f.write(response.content)
+            
+            pygame.mixer.music.load("preview.mp3")
+            pygame.mixer.music.play()
+        else:
+            print(f"Failed to download or invalid file: {response.status_code}")
+    except Exception as e:
+        print(f"Error playing preview: {e}")
+
+def stop_preview():
+    """Stop the preview audio."""
+    pygame.mixer.music.stop()
+
+def next_picture():
+    display_image_with_gradient_background()
+
+# Mouse event functions for zoom
 def on_hover(event):
     """Display zoomed-in view when the mouse hovers over the image."""
     if original_image:
@@ -148,66 +281,7 @@ def on_leave(event):
     """Hide the zoomed-in view when the mouse leaves the image."""
     label_zoom.place_forget()
 
-def search_song():
-    song_name = entry_song.get()
-    if song_name:
-        results = sp.search(q=song_name, type='track', limit=15)
-        tracks = results['tracks']['items']
-        if tracks:
-            has_preview = False
-            output = ""
-            for idx, track in enumerate(tracks):
-                track_name = track['name']
-                artist_name = track['artists'][0]['name']
-                spotify_url = track['external_urls']['spotify']
-                preview_url = track.get('preview_url')  # Get the preview URL
-
-                output += f"{idx + 1}. {track_name} by {artist_name}\nURL: {spotify_url}\n\n"
-
-                # Create play button only if a preview URL exists
-                if preview_url:
-                    has_preview = True
-                    play_button = Button(scrollable_frame, text=f"Play {track_name}",
-                                          command=lambda url=preview_url: play_preview(url))
-                    play_button.pack(pady=5)  # Add padding between buttons
-
-            update_results_text(output)
-            
-            if not has_preview:
-                update_results_text(output + "\nNo tracks with previews available.")
-        else:
-            update_results_text(text="No tracks found.")
-    else:
-        update_results_text(text="Please enter a song name.")
-
-def play_preview(preview_url):
-    """Play the song preview when the button is clicked."""
-    try:
-        # Download the MP3 file from the preview URL
-        response = requests.get(preview_url)
-        if response.status_code == 200 and response.content:
-            with open("preview.mp3", "wb") as f:
-                f.write(response.content)
-            
-            # Load the downloaded file and play it
-            pygame.mixer.music.load("preview.mp3")
-            pygame.mixer.music.play()
-        else:
-            print(f"Failed to download or invalid file: {response.status_code}")
-    except Exception as e:
-        print(f"Error playing preview: {e}")
-
-def stop_preview():
-    """Stop the preview audio."""
-    pygame.mixer.music.stop()
-
-def next_picture():
-    display_image_with_gradient_background()
-
-# GUI setup
-root = Tk()
-root.title("Random Image & Spotify Search")
-root.geometry("600x600")
+# ------------------------------ GUI Setup ------------------------------
 
 # Background Display Label
 label_bg = Label(root)
@@ -261,26 +335,21 @@ canvas.configure(yscrollcommand=scrollbar.set)
 canvas.pack(side="left", fill="both", expand=True)
 scrollbar.pack(side="right", fill="y")
 
-# Replace Label with Canvas text for better blending
 canvas_results = Canvas(scrollable_frame, bg=scrollable_frame["bg"], bd=0, highlightthickness=0)
 canvas_results.pack(fill="both", expand=True)
 
-# Function to update the results (simulating `label_results` behavior)
+# Update the results text
 def update_results_text(text):
     canvas_results.delete("all")  # Clear previous text
     canvas_results.create_text(10, 10, anchor="nw", text=text, fill="black", width=500)
 
-# Use the `update_results_text` function to display search results
 update_results_text("Type a song here")
 
-# Function to handle mouse wheel scrolling
+# Mouse wheel event handler
 def _on_mouse_wheel(event):
     canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
 canvas.bind_all("<MouseWheel>", _on_mouse_wheel)
 
-# Bind mouse wheel events
-canvas.bind_all("<MouseWheel>", _on_mouse_wheel)
-
 # Run the Tkinter event loop
-root.mainloop()
+get_player_count()
