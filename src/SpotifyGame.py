@@ -57,13 +57,13 @@ def get_player_count():
 # ------------------------------ START GAME & PLAYER TURN FUNCTIONS ------------------------------
 def start_player_turns():
     """Start the game and prompt each player to make a submission."""
+    start_music_game()  # Start the main game logic after all players have submitted their songs
     player_number = 1  # Initialize player_number at the start
     while player_number <= players:
         player_turn(player_number)  # Proceed with the current player's turn
         player_number += 1  # Increment the player number after each turn
     else:
         messagebox.showinfo("Game Over", "All players have made their submissions!")
-        start_music_game()  # Start the main game logic after all players have submitted their songs
 
 def player_turn(player_number):
     """Display the submission prompt for the current player."""
@@ -91,7 +91,7 @@ def player_turn(player_number):
         submit_button.pack(pady=10)
     else:
         messagebox.showinfo("Game Over", "All players have made their submissions!")
-        start_music_game()  # Start the main game logic after all players have submitted their songs
+
 
 def start_music_game():
     """Start the main game window (music game)."""
