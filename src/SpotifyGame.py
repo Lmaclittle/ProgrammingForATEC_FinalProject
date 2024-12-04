@@ -1,4 +1,3 @@
-# Import required libraries
 import tkinter as tk
 from tkinter import Tk, Label, Entry, Button, Canvas, Scrollbar, Frame, messagebox
 from PIL import Image, ImageTk, ImageFilter
@@ -9,9 +8,6 @@ import pygame
 from spotipy.oauth2 import SpotifyClientCredentials
 import numpy as np
 from scipy.spatial.distance import cdist
-
-# KINDA WORKS. LETS YOU SELECT THE AMOUNT OF PLAYERS BUT THEN HAS A SPASM AND RESETS. ASKS FOR AMOUNT OF PLAYERS AGAIN AND GOES THROUGH,
-    # BUT THEN IT CRASHES AFTER A MIN.
 
 # API Credentials
 SPOTIFY_CLIENT_ID = '85ff204786884864b9e5e44afefef6b7'
@@ -24,19 +20,23 @@ sp = spotipy.Spotify(client_credentials_manager=spotify_credentials_manager)
 pygame.mixer.init()
 
 root = tk.Tk()
-root.title("Random Image & Spotify Search")
+root.title("Music Game")
 root.geometry("600x600")
-# ------------------------------ BEGINNING - PLAYER COUNT ------------------------------
-def get_player_count():
-    """Prompt user for number of players before starting the game."""
-    player_window = tk.Toplevel(root)
-    player_window.title("Enter Number of Players")
-    player_window.geometry("300x200")
 
-    label_prompt = tk.Label(player_window, text="How many players are there?")
+# Create the label_prompt widget globally at the start of the app
+label_prompt = Label(root, text="")
+label_prompt.pack()
+# ------------------------------ BEGINNING - PLAYER COUNT ------------------------------
+def open_player_count_window():
+    """Open the player count input window."""
+    player_count_window = tk.Toplevel(root)
+    player_count_window.title("Enter Number of Players")
+    player_count_window.geometry("300x200")
+
+    label_prompt = tk.Label(player_count_window, text="How many players are there?")
     label_prompt.pack(pady=20)
 
-    player_count_entry = tk.Entry(player_window)
+    player_count_entry = tk.Entry(player_count_window)
     player_count_entry.pack(pady=5)
 
     def start_game():
@@ -44,41 +44,47 @@ def get_player_count():
         if num_players.isdigit() and int(num_players) > 0:
             global players
             players = int(num_players)
-            player_window.destroy()
-            start_music_game()  # Start the music game after setting the number of players
+            print(f"Number of players: {players}")
+            player_count_window.destroy()  # Only close the player count window
+            open_music_game_window()  # Open the music game window
         else:
             messagebox.showerror("Invalid input", "Please enter a valid number of players.")
 
-    submit_button = tk.Button(player_window, text="Start Game", command=start_game)
+    submit_button = tk.Button(player_count_window, text="Start Game", command=start_game)
     submit_button.pack(pady=10)
 
-    player_window.grab_set()  # Make this window modal
-    player_window.wait_window()  # Block until the player window is closed
+    player_count_window.grab_set()  # Make this window modal
+    player_count_window.wait_window()  # Block until the player count window is closed
 
 # ------------------------------ START GAME & PLAYER TURN FUNCTIONS ------------------------------
-def start_music_game():
+def open_music_game_window():
     """Start the main music game and handle player turns."""
     global player_number
-    player_number = 1  # Start with player 1
-    label_prompt.config(text=f"Player {player_number}, please make a submission.")
-    
-    entry_song.pack(pady=5)
-    button_search.pack(pady=10)
-    
-    frame_results.pack(pady=10, fill="both", expand=True)
-    canvas.pack(side="left", fill="both", expand=True)
-    scrollbar.pack(side="right", fill="y")
-    
-    label_bg.place(relwidth=1, relheight=1)
-    display_image_with_gradient_background()
+    try: 
+        player_number = 1  # Start with player 1
+        label_prompt.config(text=f"Player {player_number}, please make a submission.")
 
-    # Bind mouse events for zoom functionality
-    label_image.bind("<Motion>", on_hover)
-    label_image.bind("<Leave>", on_leave)
-    label_zoom.place_forget()
+        # Pack widgets for player input
+        entry_song.pack(pady=5)
+        button_search.pack(pady=10)
+        frame_results.pack(pady=10, fill="both", expand=True)
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
 
-    # Start the Tkinter event loop for the main game
-    start_player_turns()
+        # Set up the background and image
+        label_bg.place(relwidth=1, relheight=1)
+        display_image_with_gradient_background()
+
+        # Bind mouse events for zoom functionality
+        label_image.bind("<Motion>", on_hover)
+        label_image.bind("<Leave>", on_leave)
+        label_zoom.place_forget()
+
+        print("Music game started successfully.")
+        start_player_turns()
+    except Exception as e:
+        print(f"Error starting music game: {e}")
+        messagebox.showerror("Error", f"An error occurred: {e}")
 
 def start_player_turns():
     """Start the current player's turn to select a song."""
@@ -117,9 +123,6 @@ def judging_phase():
     """Proceed to the next phase of the game after all players have submitted their songs."""
     # Add code for the next phase of the game (e.g., comparing songs, scoring, etc.)
     pass
-
-# Now you can run the initial player count prompt
-get_player_count()
 
 # ------------------------------ Helper Functions ------------------------------
 
@@ -358,5 +361,8 @@ def _on_mouse_wheel(event):
 
 canvas.bind_all("<MouseWheel>", _on_mouse_wheel)
 
-# Run the Tkinter event loop
-get_player_count()
+# Start by opening the player count window
+open_player_count_window()
+
+# Run the main application loop
+root.mainloop()
