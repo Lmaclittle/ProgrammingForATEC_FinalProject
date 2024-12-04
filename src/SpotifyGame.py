@@ -1,6 +1,6 @@
 # Import required libraries
 import tkinter as tk
-from tkinter import Tk, Label, Entry, Button, Canvas, Scrollbar, Frame, simpledialog, messagebox
+from tkinter import Tk, Label, Entry, Button, Canvas, Scrollbar, Frame, messagebox
 from PIL import Image, ImageTk, ImageFilter
 import requests
 import random
@@ -10,7 +10,8 @@ from spotipy.oauth2 import SpotifyClientCredentials
 import numpy as np
 from scipy.spatial.distance import cdist
 
-## IT WORKS BUT GAME IMMIDEATELY ENDS AFTER PLAYER NUMBER IS INPUTTED.
+# KINDA WORKS. LETS YOU SELECT THE AMOUNT OF PLAYERS BUT THEN HAS A SPASM AND RESETS. ASKS FOR AMOUNT OF PLAYERS AGAIN AND GOES THROUGH,
+    # BUT THEN IT CRASHES AFTER A MIN.
 
 # API Credentials
 SPOTIFY_CLIENT_ID = '85ff204786884864b9e5e44afefef6b7'
@@ -44,7 +45,7 @@ def get_player_count():
             global players
             players = int(num_players)
             player_window.destroy()
-            start_player_turns()
+            start_music_game()  # Start the music game after setting the number of players
         else:
             messagebox.showerror("Invalid input", "Please enter a valid number of players.")
 
@@ -55,71 +56,70 @@ def get_player_count():
     player_window.wait_window()  # Block until the player window is closed
 
 # ------------------------------ START GAME & PLAYER TURN FUNCTIONS ------------------------------
-# Define a list to store player song submissions
-player_songs = []
-
 def start_music_game():
-    """Start the music game and display the challenge to players."""
-    global player_songs
-    player_songs = []  # Clear previous submissions
-
-    # Initialize the game display (image and prompt)
-    label_prompt.config(text="Music Game Started! Here's your song challenge.")
+    """Start the main music game and handle player turns."""
+    global player_number
+    player_number = 1  # Start with player 1
+    label_prompt.config(text=f"Player {player_number}, please make a submission.")
+    
     entry_song.pack(pady=5)
     button_search.pack(pady=10)
-
+    
     frame_results.pack(pady=10, fill="both", expand=True)
     canvas.pack(side="left", fill="both", expand=True)
     scrollbar.pack(side="right", fill="y")
-
+    
     label_bg.place(relwidth=1, relheight=1)
-    display_image_with_gradient_background()  # Display the challenge image
+    display_image_with_gradient_background()
 
-    # Now we can start the player turns to submit their songs
+    # Bind mouse events for zoom functionality
+    label_image.bind("<Motion>", on_hover)
+    label_image.bind("<Leave>", on_leave)
+    label_zoom.place_forget()
+
+    # Start the Tkinter event loop for the main game
     start_player_turns()
 
 def start_player_turns():
-    """Start the game and prompt each player to make a submission."""
-    player_number = 1  # Initialize player_number at the start
-    while player_number <= players:
-        player_turn(player_number)  # Proceed with the current player's turn
-        player_number += 1  # Increment the player number after each turn
-
-    # Once all players have submitted, proceed to the next stage
-    messagebox.showinfo("All Submissions", "All players have made their submissions!")
-    # Here, you can process the submissions, compare songs, or start the next part of the game.
-
-def player_turn(player_number):
-    """Display the submission prompt for the current player."""
+    """Start the current player's turn to select a song."""
     if player_number <= players:
-        # Update the label to prompt the current player
         label_prompt.config(text=f"Player {player_number}, please make a submission.")
-        entry_song.pack(pady=5)
-        button_search.pack(pady=10)
-
-        # Disable buttons while the player makes a submission
-        button_search.config(state="normal")
-        entry_song.config(state="normal")
+        entry_song.config(state="normal")  # Allow player to input song name
+        button_search.config(state="normal")  # Enable song search functionality
 
         def on_submission():
-            """Handle the song submission by the player."""
             song_name = entry_song.get()
             if song_name:
-                player_songs.append(song_name)  # Store the player's song submission
                 messagebox.showinfo("Submission Received", f"Player {player_number} submitted: {song_name}")
-                entry_song.delete(0, tk.END)
-                # Proceed to next player
-                player_turn(player_number + 1)  # Move to next player
+                entry_song.delete(0, tk.END)  # Clear input field
+                player_turn_complete()  # Proceed after the current player has confirmed their submission
             else:
                 messagebox.showwarning("Input Required", "Please enter a song name.")
 
-        submit_button = tk.Button(root, text="Submit", command=on_submission)
+        submit_button = tk.Button(root, text="CONFIRM", command=on_submission)
         submit_button.pack(pady=10)
     else:
-        messagebox.showinfo("All Submissions", "All players have made their submissions!")
+        messagebox.showinfo("All Players Submitted", "All players have made their submissions!")
+        # Proceed to the next phase of the game
+        judging_phase()
 
-# Start the game by showing the image and prompting for song submissions
-get_player_count()  # This triggers the start of the game
+def player_turn_complete():
+    """Move to the next player's turn."""
+    global player_number
+    player_number += 1
+    if player_number <= players:
+        start_player_turns()  # Continue with the next player's turn
+    else:
+        messagebox.showinfo("Game Over", "All players have made their submissions!")
+        judging_phase()  # Proceed to the next phase once all players have completed
+
+def judging_phase():
+    """Proceed to the next phase of the game after all players have submitted their songs."""
+    # Add code for the next phase of the game (e.g., comparing songs, scoring, etc.)
+    pass
+
+# Now you can run the initial player count prompt
+get_player_count()
 
 # ------------------------------ Helper Functions ------------------------------
 
