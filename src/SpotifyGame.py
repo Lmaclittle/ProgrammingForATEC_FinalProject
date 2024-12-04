@@ -55,15 +55,39 @@ def get_player_count():
     player_window.wait_window()  # Block until the player window is closed
 
 # ------------------------------ START GAME & PLAYER TURN FUNCTIONS ------------------------------
+# Define a list to store player song submissions
+player_songs = []
+
+def start_music_game():
+    """Start the music game and display the challenge to players."""
+    global player_songs
+    player_songs = []  # Clear previous submissions
+
+    # Initialize the game display (image and prompt)
+    label_prompt.config(text="Music Game Started! Here's your song challenge.")
+    entry_song.pack(pady=5)
+    button_search.pack(pady=10)
+
+    frame_results.pack(pady=10, fill="both", expand=True)
+    canvas.pack(side="left", fill="both", expand=True)
+    scrollbar.pack(side="right", fill="y")
+
+    label_bg.place(relwidth=1, relheight=1)
+    display_image_with_gradient_background()  # Display the challenge image
+
+    # Now we can start the player turns to submit their songs
+    start_player_turns()
+
 def start_player_turns():
     """Start the game and prompt each player to make a submission."""
-    start_music_game()  # Start the main game logic after all players have submitted their songs
     player_number = 1  # Initialize player_number at the start
     while player_number <= players:
         player_turn(player_number)  # Proceed with the current player's turn
         player_number += 1  # Increment the player number after each turn
-    else:
-        messagebox.showinfo("Game Over", "All players have made their submissions!")
+
+    # Once all players have submitted, proceed to the next stage
+    messagebox.showinfo("All Submissions", "All players have made their submissions!")
+    # Here, you can process the submissions, compare songs, or start the next part of the game.
 
 def player_turn(player_number):
     """Display the submission prompt for the current player."""
@@ -78,11 +102,13 @@ def player_turn(player_number):
         entry_song.config(state="normal")
 
         def on_submission():
-            # After player makes a submission, move to next player
+            """Handle the song submission by the player."""
             song_name = entry_song.get()
             if song_name:
+                player_songs.append(song_name)  # Store the player's song submission
                 messagebox.showinfo("Submission Received", f"Player {player_number} submitted: {song_name}")
                 entry_song.delete(0, tk.END)
+                # Proceed to next player
                 player_turn(player_number + 1)  # Move to next player
             else:
                 messagebox.showwarning("Input Required", "Please enter a song name.")
@@ -90,29 +116,10 @@ def player_turn(player_number):
         submit_button = tk.Button(root, text="Submit", command=on_submission)
         submit_button.pack(pady=10)
     else:
-        messagebox.showinfo("Game Over", "All players have made their submissions!")
+        messagebox.showinfo("All Submissions", "All players have made their submissions!")
 
-
-def start_music_game():
-    """Start the main game window (music game)."""
-    label_prompt.config(text="Enter a song to search:")
-    entry_song.pack(pady=5)
-    button_search.pack(pady=10)
-
-    frame_results.pack(pady=10, fill="both", expand=True)
-    canvas.pack(side="left", fill="both", expand=True)
-    scrollbar.pack(side="right", fill="y")
-
-    label_bg.place(relwidth=1, relheight=1)
-    display_image_with_gradient_background()
-
-    # Bind mouse events for zoom functionality
-    label_image.bind("<Motion>", on_hover)
-    label_image.bind("<Leave>", on_leave)
-    label_zoom.place_forget()
-
-    # Start the Tkinter event loop for the main game
-    root.mainloop()
+# Start the game by showing the image and prompting for song submissions
+get_player_count()  # This triggers the start of the game
 
 # ------------------------------ Helper Functions ------------------------------
 
