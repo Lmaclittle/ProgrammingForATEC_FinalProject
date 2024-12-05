@@ -1,0 +1,6 @@
+pillow
+requests
+spotipy
+pygame
+numpy
+scipy
