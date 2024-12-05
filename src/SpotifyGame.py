@@ -60,6 +60,19 @@ def open_player_count_window():
     player_count_window.wait_window()  # Block until the player count window is closed
 
 # ------------------------------ START GAME & PLAYER TURN FUNCTIONS ------------------------------
+def confirm_submission():
+    """Function to handle confirming the song submission."""
+    song_name = entry_song.get()
+    if song_name:
+        messagebox.showinfo("Song Confirmed", f"Player {player_number} confirmed: {song_name}")
+        entry_song.delete(0, tk.END)  # Clear input field
+        player_turn_complete()  # Proceed to the next player's turn
+    else:
+        messagebox.showwarning("Input Required", "Please enter a song name to confirm.")
+
+    confirm_button.config(text="CONFIRM", command=confirm_submission)
+
+
 def open_music_game_window():
     """Start the main music game and handle player turns."""
     global player_number
@@ -89,21 +102,25 @@ def open_music_game_window():
         print(f"Error starting music game: {e}")
         messagebox.showerror("Error", f"An error occurred: {e}")
 
+def on_submission():
+            song_name = entry_song.get()
+            if song_name:
+                messagebox.showinfo("Submission Received", f"Player {player_number} submitted: {song_name}")
+                entry_song.delete(0, tk.END)  # Clear input field
+                confirm_button.place_forget()  # Hide the confirm button after submission
+                player_turn_complete()  # Proceed after the current player has confirmed their submission
+            else:
+                messagebox.showwarning("Input Required", "Please enter a song name to confirm.")
+
 def start_player_turns():
     """Start the current player's turn to select a song."""
     if player_number <= players:
         label_prompt.config(text=f"Player {player_number}, please make a submission.")
         entry_song.config(state="normal")  # Allow player to input song name
         button_search.config(state="normal")  # Enable song search functionality
-
-        def on_submission():
-            song_name = entry_song.get()
-            if song_name:
-                messagebox.showinfo("Submission Received", f"Player {player_number} submitted: {song_name}")
-                entry_song.delete(0, tk.END)  # Clear input field
-                player_turn_complete()  # Proceed after the current player has confirmed their submission
-            else:
-                messagebox.showwarning("Input Required", "Please enter a song name.")
+        # Confirm Button (global to avoid duplication)
+        confirm_button.config(text="CONFIRM", command=on_submission)  # Link the CONFIRM button to the on_submission function
+        confirm_button.pack(pady=10)  # Show the button
     else:
         messagebox.showinfo("All Players Submitted", "All players have made their submissions!")
         # Proceed to the next phase of the game
@@ -249,6 +266,12 @@ def on_song_select(event):
     if selected_idx:
         track_data_idx = selected_idx[0]
         album_image_url = track_data[track_data_idx]['album_image_url']
+        selected_song = f"{track_data[track_data_idx]['name']} by {track_data[track_data_idx]['artist']}"
+
+        # Automatically fill the entry field with the selected song
+        entry_song.delete(0, tk.END)  # Clear any existing text
+        entry_song.insert(0, selected_song)  # Insert the selected song into the entry field
+        confirm_button.config(state="normal")  # Enable the confirm button once a song is selected
 
         # Download and display the image
         response = requests.get(album_image_url)
@@ -344,10 +367,6 @@ label_image.bind("<Leave>", on_leave)
 label_zoom = Label(root)
 label_zoom.place_forget()
 
-# "Next Picture" Button
-button_next = Button(root, text="Next Picture", command=next_picture)
-button_next.pack(pady=10)
-
 # Song Search Input
 label_prompt = Label(root, text="Enter a song to search:")
 label_prompt.pack()
@@ -362,7 +381,6 @@ button_search.pack(pady=10)
 confirm_button = Button(root, text="CONFIRM")
 confirm_button.pack(pady=10)
 confirm_button.place_forget()  # Initially hide the button
-
 
 # Scrollable Music Results
 frame_results = Frame(root)
