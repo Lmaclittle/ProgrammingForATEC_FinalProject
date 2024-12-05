@@ -25,7 +25,7 @@ root = tk.Tk()
 root.title("Music Vibe Game")
 root.geometry("600x700")
 
-# Create the label_prompt widget globally at the start of the app
+# Creates label_prompt widget globally at the start of the app
 label_prompt = Label(root, text="")
 label_prompt.pack()
 
@@ -70,7 +70,7 @@ def confirm_submission():
     if song_name:
         messagebox.showinfo("Song Confirmed", f"Player {player_number} confirmed: {song_name}")
         entry_song.delete(0, tk.END)  # Clear input field
-        player_turn_complete()  # Proceed to the next player's turn
+        player_turn_complete()  # Proceed to next player's turn
     else:
         messagebox.showwarning("Input Required", "Please enter a song name to confirm.")
 
@@ -81,10 +81,10 @@ def open_music_game_window():
     """Start the main music game and handle player turns."""
     global player_number
     try: 
-        player_number = 1  # Start with player 1
+        player_number = 1  # Starts with player 1
         label_prompt.config(text=f"Player {player_number}, please make a submission.")
 
-        # Pack widgets for player input
+        # Widgets for player input
         entry_song.pack(pady=5)
         button_search.pack(pady=10)
         frame_results.pack(pady=10, fill="both", expand=True)
@@ -95,7 +95,7 @@ def open_music_game_window():
         label_bg.place(relwidth=1, relheight=1)
         display_image_with_gradient_background()
 
-        # Bind mouse events for zoom functionality
+        # Bind mouse events for hover zoom functionality
         label_image.bind("<Motion>", on_hover)
         label_image.bind("<Leave>", on_leave)
         label_zoom.place_forget()
@@ -111,8 +111,8 @@ def on_submission():
             if song_name:
                 submitted_songs.append(song_name)  # Add the song to the submitted_songs list
                 messagebox.showinfo("Submission Received", f"Player {player_number} submitted: {song_name}")
-                entry_song.delete(0, tk.END)  # Clear input field
-                confirm_button.place_forget()  # Hide the confirm button after submission
+                entry_song.delete(0, tk.END)  # Clears input field
+                confirm_button.place_forget()  # Hide the confirm button after each submission
                 player_turn_complete()  # Proceed after the current player has confirmed their submission
             else:
                 messagebox.showwarning("Input Required", "Please enter a song name to confirm.")
@@ -124,11 +124,11 @@ def start_player_turns():
         entry_song.config(state="normal")  # Allow player to input song name
         button_search.config(state="normal")  # Enable song search functionality
         # Confirm Button (global to avoid duplication)
-        confirm_button.config(text="CONFIRM", command=on_submission)  # Link the CONFIRM button to the on_submission function
-        confirm_button.pack(pady=10)  # Show the button
+        confirm_button.config(text="CONFIRM", command=on_submission)
+        confirm_button.pack(pady=10)
     else:
         messagebox.showinfo("Ignore, for test")
-        # Proceed to the next phase of the game
+        # Proceeds to the next phase of the game
         judging_phase()
 
 def player_turn_complete():
@@ -310,7 +310,7 @@ def on_song_select(event):
         album_image_url = track_data[track_data_idx]['album_image_url']
         selected_song = f"{track_data[track_data_idx]['name']} by {track_data[track_data_idx]['artist']}"
 
-        # Automatically fill the entry field with the selected song
+        # Automatically fills the entry field with the selected song
         entry_song.delete(0, tk.END)  # Clear any existing text
         entry_song.insert(0, selected_song)  # Insert the selected song into the entry field
         confirm_button.config(state="normal")  # Enable the confirm button once a song is selected
@@ -321,10 +321,9 @@ def on_song_select(event):
             album_image = Image.open(BytesIO(response.content))
 
             # Set the desired maximum size for the album cover
-            max_width = 150  # Adjust this value to make the image smaller or larger
-            max_height = 150  # Adjust this value to control the height
+            max_width = 150  # Adjust value to make the image smaller or larger
+            max_height = 150  # Adjust value to control the height
 
-            # Resize the image to fit within the desired dimensions
             album_image.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
 
             album_img = ImageTk.PhotoImage(album_image)
