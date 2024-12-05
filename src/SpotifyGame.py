@@ -20,6 +20,7 @@ spotify_credentials_manager = SpotifyClientCredentials(client_id=SPOTIFY_CLIENT_
 sp = spotipy.Spotify(client_credentials_manager=spotify_credentials_manager)
 pygame.mixer.init()
 
+# Basic Geometry For The Main Game
 root = tk.Tk()
 root.title("Music Vibe Game")
 root.geometry("600x700")
@@ -28,7 +29,10 @@ root.geometry("600x700")
 label_prompt = Label(root, text="")
 label_prompt.pack()
 
+# Lists
 track_data = []
+submitted_songs = []
+
 # ------------------------------ BEGINNING - PLAYER COUNT ------------------------------
 def open_player_count_window():
     """Open the player count input window."""
@@ -105,6 +109,7 @@ def open_music_game_window():
 def on_submission():
             song_name = entry_song.get()
             if song_name:
+                submitted_songs.append(song_name)  # Add the song to the submitted_songs list
                 messagebox.showinfo("Submission Received", f"Player {player_number} submitted: {song_name}")
                 entry_song.delete(0, tk.END)  # Clear input field
                 confirm_button.place_forget()  # Hide the confirm button after submission
@@ -122,7 +127,7 @@ def start_player_turns():
         confirm_button.config(text="CONFIRM", command=on_submission)  # Link the CONFIRM button to the on_submission function
         confirm_button.pack(pady=10)  # Show the button
     else:
-        messagebox.showinfo("All Players Submitted", "All players have made their submissions!")
+        messagebox.showinfo("Ignore, for test")
         # Proceed to the next phase of the game
         judging_phase()
 
@@ -133,13 +138,50 @@ def player_turn_complete():
     if player_number <= players:
         start_player_turns()  # Continue with the next player's turn
     else:
-        messagebox.showinfo("Game Over", "All players have made their submissions!")
+        messagebox.showinfo("All Players Have Submitted", "It Is Now The Judges Turn!")
         judging_phase()  # Proceed to the next phase once all players have completed
 
 def judging_phase():
-    """Proceed to the next phase of the game after all players have submitted their songs."""
-    # Add code for the next phase of the game (e.g., comparing songs, scoring, etc.)
-    pass
+    """Proceed to the judging phase after all players have submitted their songs."""
+    label_album_image.place_forget()  # Hide the album cover
+    # Clear all widgets except for the main image
+    for widget in root.winfo_children():
+        if widget != label_image:  # Keep the main photo visible
+            widget.pack_forget()
+
+    # Display each player's submission
+    submissions_frame = Frame(root)
+    submissions_frame.pack(pady=20)
+
+    Label(submissions_frame, text="Submissions for Judging", font=("Arial", 16)).pack(pady=10)
+
+    # Create a list to display each player's submission
+    for player_num in range(1, players + 1):
+        song_submission = f"Player {player_num}: {submitted_songs[player_num - 1]}"
+        Label(submissions_frame, text=song_submission, font=("Arial", 12)).pack(pady=5)
+
+    # Create a Listbox for the judge to select a winner
+    winner_listbox = Listbox(submissions_frame, height=players, font=("Arial", 12))
+    for player_num in range(1, players + 1):
+        winner_listbox.insert(tk.END, f"Player {player_num}")
+    winner_listbox.pack(pady=10)
+
+    def declare_winner():
+        selected_idx = winner_listbox.curselection()
+        if selected_idx:
+            winner = winner_listbox.get(selected_idx[0])
+            messagebox.showinfo("Winner Selected", f"Congratulations {winner}!")
+            # Display the winner prominently
+            for widget in root.winfo_children():
+                widget.pack_forget()  # Clear all widgets
+            Label(root, text=f"{winner} is the Winner!", font=("Arial", 20), fg="green").pack(pady=20)
+            label_image.pack(pady=10)  # Repack the main image
+        else:
+            messagebox.showwarning("No Selection", "Please select a winner.")
+
+    # Add a button for the judge to confirm the winner
+    Button(submissions_frame, text="Declare Winner", command=declare_winner).pack(pady=10)
+
 
 # ------------------------------ Helper Functions ------------------------------
 
