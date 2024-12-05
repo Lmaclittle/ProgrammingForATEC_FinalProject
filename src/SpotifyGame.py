@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import Tk, Label, Entry, Button, Canvas, Scrollbar, Frame, messagebox
+from tkinter import Tk, Label, Entry, Button, Canvas, Scrollbar, Frame, messagebox, Listbox
 from PIL import Image, ImageTk, ImageFilter
 import requests
 import random
@@ -8,6 +8,7 @@ import pygame
 from spotipy.oauth2 import SpotifyClientCredentials
 import numpy as np
 from scipy.spatial.distance import cdist
+from io import BytesIO
 
 # API Credentials
 SPOTIFY_CLIENT_ID = '85ff204786884864b9e5e44afefef6b7'
@@ -20,12 +21,14 @@ sp = spotipy.Spotify(client_credentials_manager=spotify_credentials_manager)
 pygame.mixer.init()
 
 root = tk.Tk()
-root.title("Music Game")
-root.geometry("600x600")
+root.title("Music Vibe Game")
+root.geometry("600x700")
 
 # Create the label_prompt widget globally at the start of the app
 label_prompt = Label(root, text="")
 label_prompt.pack()
+
+track_data = []
 # ------------------------------ BEGINNING - PLAYER COUNT ------------------------------
 def open_player_count_window():
     """Open the player count input window."""
@@ -101,9 +104,6 @@ def start_player_turns():
                 player_turn_complete()  # Proceed after the current player has confirmed their submission
             else:
                 messagebox.showwarning("Input Required", "Please enter a song name.")
-
-        submit_button = tk.Button(root, text="CONFIRM", command=on_submission)
-        submit_button.pack(pady=10)
     else:
         messagebox.showinfo("All Players Submitted", "All players have made their submissions!")
         # Proceed to the next phase of the game
@@ -214,33 +214,64 @@ def display_image_with_gradient_background():
         label_image.config(text="Failed to load image")
 
 def search_song():
+    """Search for songs on Spotify and populate the Listbox with results."""
     song_name = entry_song.get()
     if song_name:
+        # Clear old results and album image
+        results_listbox.delete(0, tk.END)  # Clear the Listbox
+        label_album_image.place_forget()  # Hide the album image
+        track_data.clear()  # Reset the track data
+
+        # Perform the new search
         results = sp.search(q=song_name, type='track', limit=15)
         tracks = results['tracks']['items']
         if tracks:
-            has_preview = False
-            output = ""
             for idx, track in enumerate(tracks):
                 track_name = track['name']
                 artist_name = track['artists'][0]['name']
-                spotify_url = track['external_urls']['spotify']
-                preview_url = track.get('preview_url')
-                output += f"{idx + 1}. {track_name} by {artist_name}\nURL: {spotify_url}\n\n"
+                results_listbox.insert(tk.END, f"{track_name} by {artist_name}")
 
-                if preview_url:
-                    has_preview = True
-                    play_button = Button(scrollable_frame, text=f"Play {track_name}",
-                                          command=lambda url=preview_url: play_preview(url))
-                    play_button.pack(pady=5)
-
-            update_results_text(output)
-            if not has_preview:
-                update_results_text(output + "\nNo tracks with previews available.")
+                # Store track data for future use (including album art URL)
+                track_data.append({
+                    'name': track_name,
+                    'artist': artist_name,
+                    'album_image_url': track['album']['images'][0]['url']  # Fetch the largest image
+                })
         else:
-            update_results_text(text="No tracks found.")
+            messagebox.showinfo("No Results", "No tracks found for the search query.")
     else:
-        update_results_text(text="Please enter a song name.")
+        messagebox.showwarning("Empty Query", "Please enter a song name.")
+
+
+def on_song_select(event):
+    """Display the album image of the selected song."""
+    selected_idx = results_listbox.curselection()
+    if selected_idx:
+        track_data_idx = selected_idx[0]
+        album_image_url = track_data[track_data_idx]['album_image_url']
+
+        # Download and display the image
+        response = requests.get(album_image_url)
+        if response.status_code == 200:
+            album_image = Image.open(BytesIO(response.content))
+
+            # Set the desired maximum size for the album cover
+            max_width = 150  # Adjust this value to make the image smaller or larger
+            max_height = 150  # Adjust this value to control the height
+
+            # Resize the image to fit within the desired dimensions
+            album_image.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
+
+            album_img = ImageTk.PhotoImage(album_image)
+            label_album_image.config(image=album_img)
+            label_album_image.image = album_img
+
+            # Position the album image to overlap the listbox
+            label_album_image.place(x=root.winfo_width() - album_image.width - 10, y=results_listbox.winfo_y() + 300)  # Overlapping position
+
+        else:
+            print(f"Failed to load image: {response.status_code}")
+
 
 def play_preview(preview_url):
     """Play the song preview when the button is clicked."""
@@ -302,6 +333,9 @@ label_image = Label(root)
 label_image.pack(pady=10)
 display_image_with_gradient_background()
 
+label_album_image = Label(root)
+label_album_image.place_forget()  # Initially hide the label
+
 # Bind mouse events for zoom functionality
 label_image.bind("<Motion>", on_hover)
 label_image.bind("<Leave>", on_leave)
@@ -324,6 +358,12 @@ entry_song.pack(pady=5)
 button_search = Button(root, text="Search Song", command=search_song)
 button_search.pack(pady=10)
 
+# Confirm Button (global to avoid duplication)
+confirm_button = Button(root, text="CONFIRM")
+confirm_button.pack(pady=10)
+confirm_button.place_forget()  # Initially hide the button
+
+
 # Scrollable Music Results
 frame_results = Frame(root)
 frame_results.pack(pady=10, fill="both", expand=True)
@@ -345,15 +385,17 @@ canvas.configure(yscrollcommand=scrollbar.set)
 canvas.pack(side="left", fill="both", expand=True)
 scrollbar.pack(side="right", fill="y")
 
-canvas_results = Canvas(scrollable_frame, bg=scrollable_frame["bg"], bd=0, highlightthickness=0)
-canvas_results.pack(fill="both", expand=True)
+# Song Results Listbox
+results_listbox = Listbox(scrollable_frame, selectmode="browse", height=15)
+results_listbox.pack(pady=10, fill="both", expand=True)
+# Dynamically update the width of the Listbox based on the root window size
+def update_listbox_width(event):
+    results_listbox.config(width=root.winfo_width())
+    results_listbox.bind("<ButtonRelease-1>", on_song_select)
 
-# Update the results text
-def update_results_text(text):
-    canvas_results.delete("all")  # Clear previous text
-    canvas_results.create_text(10, 10, anchor="nw", text=text, fill="black", width=500)
 
-update_results_text("Type a song here")
+# Bind the resizing event of the root window
+root.bind("<Configure>", update_listbox_width)
 
 # Mouse wheel event handler
 def _on_mouse_wheel(event):
